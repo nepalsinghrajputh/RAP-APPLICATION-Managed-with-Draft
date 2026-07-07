@@ -1,0 +1,134 @@
+CLASS lhc_billitem DEFINITION INHERITING FROM cl_abap_behavior_handler.
+
+  PRIVATE SECTION.
+
+    METHODS determineitem_desc FOR DETERMINE ON MODIFY
+      IMPORTING keys FOR BillItem~determineitem_desc.
+    METHODS validatequantity FOR VALIDATE ON SAVE
+      IMPORTING keys FOR BillItem~validatequantity.
+    METHODS validateamt FOR VALIDATE ON SAVE
+      IMPORTING keys FOR BillItem~validateamt.
+    METHODS get_instance_features FOR INSTANCE FEATURES
+      IMPORTING keys REQUEST requested_features FOR BillItem RESULT result.
+
+ENDCLASS.
+
+CLASS lhc_billitem IMPLEMENTATION.
+
+  METHOD determineitem_desc.
+    "Read the BillItem entities based on the keys provided and store them in a local table lt_billing_items
+    READ ENTITIES OF zrap_r_billhdr IN LOCAL MODE
+      ENTITY BillItem
+      FIELDS ( BillId ItemNo MaterialId )
+      WITH CORRESPONDING #( keys )
+      RESULT DATA(lt_billing_items).
+
+    " Modify Description field of the BillItem entity based on the MaterialId field of the BillItem entity
+    MODIFY ENTITIES OF zrap_r_billhdr IN LOCAL MODE
+    ENTITY BillItem
+    UPDATE FIELDS ( Description )
+    WITH VALUE #(
+        FOR ls_item IN lt_billing_items
+        (
+          %tky        = ls_item-%tky
+          Description = |Item for { ls_item-MaterialId }|
+        )
+      ).
+
+  ENDMETHOD.
+
+  METHOD validatequantity.
+*  *  Validation Triggers in Save sequence and can de done on particular fields
+    "Read Header data for the given keys to validate the net amount
+    READ ENTITIES OF zrap_r_billhdr IN LOCAL MODE
+       ENTITY BillItem
+       ALL FIELDS WITH
+       CORRESPONDING #( keys )
+       RESULT DATA(lt_result).
+    "Validate the net amount and currency for each header record and set the message accordingly
+    LOOP AT lt_result INTO DATA(ls_result).
+
+      IF ls_result-Uom IS INITIAL AND ls_result-Quantity IS NOT INITIAL.
+*      Fill the failed-billhdr table with the keys of the failed records and
+*      set the message for the failed records to be reported back to the framework
+        APPEND VALUE #( %tky = ls_result-%tky )
+          TO failed-billitem.
+
+        APPEND VALUE #(
+          %tky = keys[ 1 ]-%tky
+          %element-uom = if_abap_behv=>mk-on   "Highlight the currency field in the UI
+          %msg = new_message_with_text(
+                    severity = if_abap_behv_message=>severity-error
+                    text     = 'Please maintain Unit Of Measure'
+                 )
+        ) TO reported-billitem.
+
+      ENDIF.
+
+    ENDLOOP.
+  ENDMETHOD.
+
+  METHOD validateamt.
+*  *  Validation Triggers in Save sequence and can be done on particular fields
+    "Read Header data for the given keys to validate the net amount
+    READ ENTITIES OF zrap_r_billhdr IN LOCAL MODE
+    ENTITY BillItem
+       ALL FIELDS WITH
+       CORRESPONDING #( keys )
+       RESULT DATA(lt_result).
+    "Validate the net amount and currency for each header record and set the message accordingly
+    LOOP AT lt_result INTO DATA(ls_result).
+
+      IF ls_result-Currency IS INITIAL AND ls_result-ItemAmount IS NOT INITIAL.
+*      Fill the failed-billhdr table with the keys of the failed records and
+*      set the message for the failed records to be reported back to the framework
+        APPEND VALUE #( %tky = ls_result-%tky )
+          TO failed-billitem.
+
+        APPEND VALUE #(
+          %tky = keys[ 1 ]-%tky
+          %element-currency = if_abap_behv=>mk-on   "Highlight the currency field in the UI
+          %msg = new_message_with_text(
+                    severity = if_abap_behv_message=>severity-error
+                    text     = 'Please maintain currency'
+                 )
+        ) TO reported-billitem.
+
+      ENDIF.
+
+    ENDLOOP.
+
+  ENDMETHOD.
+
+  METHOD get_instance_features.
+    READ ENTITIES OF zrap_r_billhdr  IN LOCAL MODE
+      ENTITY BillHdr
+      ALL FIELDS WITH CORRESPONDING #( keys )
+      RESULT DATA(lt_result_hdr).
+    DATA(lv_status) = lt_result_hdr[ 1 ]-ReleaseStatus.
+    READ ENTITIES OF zrap_r_billhdr  IN LOCAL MODE
+      ENTITY BillItem
+      ALL FIELDS WITH CORRESPONDING #( keys )
+      RESULT DATA(lt_result).
+
+    "with this sending features that in Release = D then EDIT should enabled or it will be disabled or not shown in UI
+    IF lt_result IS NOT INITIAL.
+      result = VALUE #(
+        FOR ls_result IN lt_result (
+          %tky = ls_result-%tky
+          %features-%update = COND #(
+            WHEN lv_status = 'D' OR lv_status = ''
+            THEN if_abap_behv=>fc-o-enabled
+            ELSE if_abap_behv=>fc-o-disabled
+          )
+          %features-%delete = COND #(
+            WHEN lv_status = 'D' OR lv_status = ''
+            THEN if_abap_behv=>fc-o-enabled
+            ELSE if_abap_behv=>fc-o-disabled
+          )
+        )
+      ).
+    ENDIF.
+  ENDMETHOD.
+
+ENDCLASS.

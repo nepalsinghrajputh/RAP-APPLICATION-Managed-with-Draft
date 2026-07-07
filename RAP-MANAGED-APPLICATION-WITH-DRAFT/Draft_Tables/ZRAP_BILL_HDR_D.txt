@@ -1,0 +1,25 @@
+@EndUserText.label : 'Draft table for entity ZRAP_R_BILLHDR'
+@AbapCatalog.enhancement.category : #EXTENSIBLE_ANY
+@AbapCatalog.tableCategory : #TRANSPARENT
+@AbapCatalog.deliveryClass : #A
+@AbapCatalog.dataMaintenance : #RESTRICTED
+define table zrap_bill_hdr_d {
+
+  key mandt          : mandt not null;
+  key billid         : abap.numc(10) not null;
+  billtype           : zrap_de_billtype;
+  billdate           : abap.dats;
+  customerid         : kunnr;
+  @Semantics.amount.currencyCode : 'zrap_bill_hdr_d.currency'
+  netamount          : abap.curr(15,2);
+  currency           : waers;
+  salesorg           : vkorg;
+  releasestatus      : zrap_de_release_sts;
+  createdby          : syuname;
+  createdat          : timestamp;
+  lastchangedby      : syuname;
+  lastchangedat      : abp_lastchange_tstmpl;
+  locallastchangedat : abp_locinst_lastchange_tstmpl;
+  "%admin"           : include sych_bdl_draft_admin_inc;
+
+}

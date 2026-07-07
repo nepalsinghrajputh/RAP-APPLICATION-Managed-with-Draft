@@ -1,0 +1,26 @@
+@EndUserText.label : 'Draft table for entity ZRAP_R_BILLITM'
+@AbapCatalog.enhancement.category : #EXTENSIBLE_ANY
+@AbapCatalog.tableCategory : #TRANSPARENT
+@AbapCatalog.deliveryClass : #A
+@AbapCatalog.dataMaintenance : #RESTRICTED
+define table zrap_billitem_d {
+
+  key mandt          : mandt not null;
+  key billid         : abap.numc(10) not null;
+  key itemno         : abap.numc(6) not null;
+  materialid         : matnr;
+  description        : abap.char(40);
+  @Semantics.quantity.unitOfMeasure : 'zrap_billitem_d.uom'
+  quantity           : abap.quan(13,3);
+  @Semantics.amount.currencyCode : 'zrap_billitem_d.currency'
+  itemamount         : abap.curr(15,2);
+  currency           : waers;
+  uom                : meins;
+  createdby          : syuname;
+  createdat          : timestamp;
+  lastchangedby      : syuname;
+  lastchangedat      : abp_lastchange_tstmpl;
+  locallastchangedat : abp_locinst_lastchange_tstmpl;
+  "%admin"           : include sych_bdl_draft_admin_inc;
+
+}
